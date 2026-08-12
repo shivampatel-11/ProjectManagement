@@ -1,16 +1,22 @@
 import { ApiResponse } from "../utils/api-response.js";
+import { asyncHandler } from "../utils/api-response.js";
 
 
-
-const healthcheck = (req,res) =>{
+/**
+const healthcheck =  async (req,res, next) =>{
     try {
+
+        const user = await getUserFromDB()
         res.
         status(200).
         json(new ApiResponse(200, {message: "Server is running"}));
-    } catch (error){}
-        
-}
 
+    } catch (error) {
+   
+    next(err)
+    }
+};
+*/
 
 
 export { healthcheck };
