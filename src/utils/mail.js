@@ -1,5 +1,57 @@
 import { verify } from "jsonwebtoken";
 import Mailgen from "mailgen";
+import nodemailer from "nodemailer"
+
+
+
+
+const sendEmail = async (options) =>{
+   const mailGenerator=  new Mailgen({
+        theme: "default",
+        product:{
+            name:"Task Manager",
+            link: "https://taskmanagerlink.com"
+        }
+    })
+
+     const emailHtml = mailGenerator.generate(options.mailgenContent)
+
+}
+
+
+     const transportnodemailer = nodemailer.createTransport({
+        host: process.env.MAIL_TRAP_HOST,
+        port: process.env.MAILTRAP_SMTP_PORT,
+        auth: {
+            user: process.env.MAILTRAP_SMTP_USER,
+            pass: process.env.MAILTRAP_SMTP_PASS
+        }
+     })
+
+     const mail = {
+        from:"mail.taskmanager@example.com",
+        to: options.email,
+        subject: options.subject,
+        text: emailTextual,
+        html:emailHtml
+     }
+
+
+      try {
+
+        await transportnodemailer.sendMail(mail)
+        
+      } catch (error) {
+        console.error("emailservice failed ")
+        console.error("error:" ,error)
+      }
+    
+
+
+
+
+
+
 
 
 
@@ -51,5 +103,6 @@ const forgotPasswordMailgenContent = (username, passwordResetUrl) =>{
 
 export {
       emailVarificationMailgenContent, 
-      forgotPasswordMailgenContent
+      forgotPasswordMailgenContent,
+      sendEmail
 }
