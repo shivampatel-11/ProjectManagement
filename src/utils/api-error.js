@@ -22,4 +22,4 @@ class ApiError extends Error {
   } 
 }
 
-export { ApiResponse };
+export { ApiError };
