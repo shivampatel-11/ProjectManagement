@@ -7,6 +7,7 @@ import {
   sendEmail,
 } from "../utils/mail.js";
 import Mailgen from "mailgen";
+import jwt from "jsonwebtoken"
 
 
 const generateAccessTokenAndRefreshTokens = async (userId) => {
@@ -210,7 +211,156 @@ const logoutUser = asyncHandler(async (req,res)=>{
 
 });
 
+const getCurrentUser = asyncHandler(async(req,res)=> {
+          return res
+          .status(200)
+          .json(
 
+            new ApiResponse(
+              200,
+              req.user,
+              "Current user fetched successfully"
+            )
+          );
+});
+
+const verifyEmail = asyncHandler(async(req,res)=> {
+  
+  const {verificationToken} = req.params
+  if(!verificationToken){
+    throw new ApiError(400,"emial verification token is missing")
+  }
+
+ let hashedToken = crypto
+      .createHash("sha256")
+      .update(verificationToken)
+      .digest("hex")
+
+      await User.findOne({
+        emailVerificationToken: hashedToken,
+        emailVerificationExpiry: {$gt: Date.now()}
+      })
+      
+      if(!user){
+        throw new ApiError(400, "Token is invalid or expired")
+      }
+
+       user.emailVerificationToken = undefined
+       user.emailVerificationExpiry = undefined
+
+        user.isEmailVerified = true
+        await user.save({ validateBeforeSave: false})
+
+        return res.status(200)
+        .json(
+          new ApiResponse(
+            200, {
+              isEmailVerified: true
+            },
+            "email is verified"
+          )
+        )
+
+});
+
+
+
+
+
+const resendEmailVerification = asyncHandler(async(req,res)=> {
+ const user = await User.findById(req.user?._id)
+ if(!user){
+  throw new ApiError(404, "user does not exist")
+ }
+  if(user.isEmailVerified){
+    throw new ApiError(409, "Email is already verified")
+  }
+     const {
+    unHashedToken,
+    hashedToken,
+    tokenExpiry,
+  } = user.generateTemporaryToken();
+
+
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpiry = tokenExpiry;
+
+
+  await user.save({
+    validateBeforeSave: false,
+  });
+
+
+  await sendEmail({
+    email: user?.email,
+    subject: "Please verify your email",
+
+    mailgenContent: emailVarificationMailgenContent(
+      user.username,
+      `${req.protocol}://${req.get("host")}/api/v1/users/varify-email/${unHashedToken}`,
+    ),
+  });
+
+  return res 
+  .status(200)
+  .json(
+    new ApiResponse(
+      200, 
+      {},
+      "Mail  has been sent to your email id"
+    )
+  )
+
+});
+
+
+const refreshToken = asyncHandler(async(req,res)=> {
+
+ const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
+  if(!incomingRefreshToken){
+    throw new ApiError(401, "Unauthorized Access")
+  }
+  try {
+    const decodedToken = jwt.verify(incomingRefreshToken, process.env.REFRESH_TOKEN_SECRET)
+
+    await user = await User.findById(decodedToken?._id);
+    if(!user){
+      throw new ApiError(401, "Invalid refresh Token");
+    }
+    
+    if(incomingRefreshToken != user?.refreshToken){
+
+       throw new ApiError(401, " refresh Token expired ");
+    }
+   
+    const options = {
+      httpOnly: true,
+      secure: true
+    }
+       const {accessToken,refreshToken: newRefreshToken} = await 
+       generateAccessTokenAndRefreshTokens(user._id)
+
+       user.refreshToken = newRefreshToken;
+       await user.save()
+       
+       return res.status(200)
+       .cookie("accessToken",accessToken,options)
+       .cookie("refreshToken", newRefreshToken, options)
+       .json(
+        200,
+        {accessToken, refreshToken: newRefreshToken},
+        "Access token refreshed"
+       )
+ 
+  } catch (error) {
+
+     throw new ApiError(401, " refresh Token invalid ");
+  }
+});
+
+// const getCurrentUser = asyncHandler(async(req,res)=> {
+
+// });
 
 
 
@@ -220,5 +370,9 @@ const logoutUser = asyncHandler(async (req,res)=>{
 export {
   registerUser,
   login,
-  logoutUser
+  logoutUser,
+  getCurrentUser, 
+  verifyEmail,
+  resendEmailVerification,
+  refreshToken
 };
