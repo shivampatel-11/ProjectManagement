@@ -19,7 +19,7 @@ app.use(cors({
 })
 );
 
-
+ 
 // import the routes 
 
 import healthcheckRouter from "./routes/healthcheck.routes.js"
